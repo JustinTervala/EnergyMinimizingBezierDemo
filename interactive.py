@@ -35,6 +35,8 @@ class BezierBuilder(object):
         # there's no mouse movement between button press and release)
         self.moved_before_release = False
         self.pressed = False
+        self.nearest_point = None
+        self.distance_threshold = 0.025
 
         # Create Bézier curve
         line_bezier = Line2D([], [],
@@ -47,6 +49,12 @@ class BezierBuilder(object):
             return
         else:
             self.pressed = True
+            if self.xp:
+                nearest_index, nearest_distance = self.get_nearest_point(event.xdata, event.ydata)
+                if nearest_distance <= self.distance_threshold:
+                    self.nearest_point = nearest_index
+                else:
+                    self.nearest_point = None
 
     def on_motion(self, event):
         # We need to handle events only when there's no movement
@@ -56,18 +64,42 @@ class BezierBuilder(object):
             self.moved_before_release = True
 
     def on_release(self, event):
-        if self.pressed and not self.moved_before_release:
-            # Add point
-            self.xp.append(event.xdata)
-            self.yp.append(event.ydata)
-            self.control_polygon.set_data(self.xp, self.yp)
-
-            # Rebuild Bézier curve and update canvas
-            self.bezier_curve.set_data(*self._build_bezier())
-            self._update_bernstein()
-            self._update_bezier()
+        if self.pressed:
+            if not self.moved_before_release:
+                # Add point
+                self.add_control_point(event.xdata, event.ydata)
+            else:
+                if self.nearest_point is not None:
+                    self.update_control_point(self.nearest_point, event.xdata, event.ydata)
+            self.update_curves()
         self.pressed = False
         self.moved_before_release = False
+
+    def get_nearest_point(self, x, y):
+        nearest_index = None
+        nearest_distance = float('inf')
+        for i, (point_x, point_y) in enumerate(zip(self.xp, self.yp)):
+            distance = abs(point_x - x) + abs(point_y - y)
+            if distance < nearest_distance:
+                nearest_index = i
+                nearest_distance = distance
+        return nearest_index, nearest_distance
+
+    def add_control_point(self, x, y):
+        self.xp.append(x)
+        self.yp.append(y)
+
+    def update_control_point(self, index, x, y):
+        self.xp[index] = x
+        self.yp[index] = y
+
+    def update_curves(self):
+        self.control_polygon.set_data(self.xp, self.yp)
+
+        # Rebuild Bézier curve and update canvas
+        self.bezier_curve.set_data(*self._build_bezier())
+        self._update_bernstein()
+        self._update_bezier()
 
     def _build_bezier(self):
         x, y = Bezier(list(zip(self.xp, self.yp))).T
