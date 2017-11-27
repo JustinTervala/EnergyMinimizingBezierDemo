@@ -31,6 +31,7 @@ class BezierBuilder(object):
                                               self.on_motion)
         self.release = self.canvas.mpl_connect('button_release_event',
                                                self.on_release)
+        self.delete_point = self.canvas.mpl_connect('key_press_event', self.remove_control_point)
         # Variables to know when we really need to add a point (when
         # there's no mouse movement between button press and release)
         self.moved_before_release = False
@@ -92,6 +93,14 @@ class BezierBuilder(object):
     def update_control_point(self, index, x, y):
         self.xp[index] = x
         self.yp[index] = y
+
+    def remove_control_point(self, event):
+        if event.key == 'd':
+            nearest_index, nearest_distance = self.get_nearest_point(event.xdata, event.ydata)
+            if nearest_distance <= self.distance_threshold:
+                self.xp.pop(nearest_index)
+                self.yp.pop(nearest_index)
+                self.update_curves()
 
     def update_curves(self):
         self.control_polygon.set_data(self.xp, self.yp)
