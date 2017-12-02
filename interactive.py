@@ -25,12 +25,9 @@ class BezierBuilder(object):
         self.ax_bernstein = ax_bernstein
 
         # Event handler for mouse clicking
-        self.press = self.canvas.mpl_connect('button_press_event',
-                                             self.on_press)
-        self.motion = self.canvas.mpl_connect('motion_notify_event',
-                                              self.on_motion)
-        self.release = self.canvas.mpl_connect('button_release_event',
-                                               self.on_release)
+        self.press = self.canvas.mpl_connect('button_press_event', self.on_press)
+        self.motion = self.canvas.mpl_connect('motion_notify_event',self.on_motion)
+        self.release = self.canvas.mpl_connect('button_release_event', self.on_release)
         self.delete_point = self.canvas.mpl_connect('key_press_event', self.remove_control_point)
         # Variables to know when we really need to add a point (when
         # there's no mouse movement between button press and release)
@@ -106,48 +103,56 @@ class BezierBuilder(object):
         self.control_polygon.set_data(self.xp, self.yp)
 
         # Rebuild Bézier curve and update canvas
-        self.bezier_curve.set_data(*self._build_bezier())
-        self._update_bernstein()
+        bezier_x, bezier_y, norm = self._build_bezier()
+        self.bezier_curve.set_data(bezier_x, bezier_y)
+        self._update_bernstein(norm)
         self._update_bezier()
 
     def _build_bezier(self):
-        x, y = Bezier(list(zip(self.xp, self.yp))).T
-        return x, y
+        x, y = bezier(list(zip(self.xp, self.yp))).T
+        t = np.linspace(0, 1, num=200)
+        diffx = np.gradient(x, t[1] - t[0])
+        diffy = np.gradient(x, t[1] - t[0])
+        norm = np.zeros(np.size(diffx))
+        for i in range(len(norm)):
+            norm[i] = diffx[i]*diffx[i] + diffy[i]*diffy[i]
+        return x, y, norm
 
     def _update_bezier(self):
         self.canvas.draw()
 
-    def _update_bernstein(self):
-        N = len(self.xp) - 1
+    def _update_bernstein(self, norm):
+        n = len(self.xp) - 1
         t = np.linspace(0, 1, num=200)
+
         ax = self.ax_bernstein
         ax.clear()
-        for kk in range(N + 1):
-            ax.plot(t, Bernstein(N, kk)(t))
-        ax.set_title("Bernstein basis, N = {}".format(N))
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
+        for k in range(n + 1):
+            ax.plot(t, norm)
+        ax.set_title("Energy, N = {}".format(n))
+        # ax.set_xlim(0, 1)
+        # ax.set_ylim(0, 1)
 
 
-def Bernstein(n, k):
+def bernstein(n, k):
     """Bernstein polynomial.
     """
-    coeff = binom(n, k)
+    coefficient = binom(n, k)
 
-    def _bpoly(x):
-        return coeff * x ** k * (1 - x) ** (n - k)
+    def _bernstein_polynomial(x):
+        return coefficient * x ** k * (1 - x) ** (n - k)
 
-    return _bpoly
+    return _bernstein_polynomial
 
 
-def Bezier(points, num=200):
+def bezier(points, num=200):
     """Build Bézier curve from points.
     """
-    N = len(points)
+    n = len(points)
     t = np.linspace(0, 1, num=num)
     curve = np.zeros((num, 2))
-    for ii in range(N):
-        curve += np.outer(Bernstein(N - 1, ii)(t), points[ii])
+    for i in range(n):
+        curve += np.outer(bernstein(n - 1, i)(t), points[i])
     return curve
 
 
@@ -166,7 +171,7 @@ if __name__ == '__main__':
     ax1.set_title("Bézier curve")
 
     # Bernstein plot
-    ax2.set_title("Bernstein basis")
+    ax2.set_title("Energy")
 
     # Create BezierBuilder
     bezier_builder = BezierBuilder(line, ax2)
