@@ -20,7 +20,7 @@ def delta(k, m):
 
 def inner_sum(i, j, n, m):
     return sum(delta(abs(j-k), m)*calc_n(i, k, n, m)
-               for k in range(max(0, j-m), min(j, n-m)+1))
+               for k in range(max(0, j-m), min(j, n-m-1)+1))
 
 
 def construct_energy_min_matrix(n, m):
