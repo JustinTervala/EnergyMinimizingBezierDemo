@@ -1,26 +1,28 @@
 import numpy as np
-from numpy import linalg
 from scipy.special import binom
+from functools32 import lru_cache
 
 
-def calc_n(row_index, col_index, num_points, degree):
+def calc_n(i, j, n, m):
     sum_ = 0
-    for k in range(degree+1):
-        if 0 <= row_index - k <= num_points-degree:
-            sum_ += ((-1) ** (degree - k) *
-                     binom(degree, k) *
-                     binom(num_points - degree, row_index - k) /
-                     binom(2 * (num_points - degree), row_index + col_index - k))
-    return binom(num_points - degree, col_index) * sum_
+    for k in range(m + 1):
+        if 0 <= k <= i and i-k <= n-m and i+j-k <= 2*(n-m):
+            sum_ += ((-1) ** (m-k) *
+                     binom(m, k) *
+                     binom(n-m, i-k) /
+                     binom(2 * (n-m), i+j-k))
+    return binom(n-m, j) * sum_
 
 
+@lru_cache(maxsize=32)
 def delta(k, m):
     return (-1)**(m-k)*binom(m, k)
 
 
+@lru_cache(maxsize=128)
 def inner_sum(i, j, n, m):
     return sum(delta(abs(j-k), m)*calc_n(i, k, n, m)
-               for k in range(max(0, j-m), min(j, n-m-1)+1))
+               for k in range(max(0, j-m), min(j, n-m)+1))
 
 
 def construct_energy_min_matrix(n, m):
